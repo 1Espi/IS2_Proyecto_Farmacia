@@ -9,6 +9,8 @@ class connection:
         self.database = os.environ['DATABASE']
         self.user = os.environ['OSOARIO']
         self.password = os.environ['PASSWORD']
+        
+        
     
     def open(self):
         self.conn = psycopg2.connect(

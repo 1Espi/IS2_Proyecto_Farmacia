@@ -28,24 +28,27 @@ class Login:
 
     def login(self):
         username = self.entry_username.get()
+        print(username)
         input_password = self.entry_password.get()
 
         try:
             con = dbconn.connection()
             connection = con.open()
             cursor = connection.cursor()
-            query = "SELECT ID, username, password, perfil, nombre FROM usuarios WHERE username = %s"
+            query = "SELECT * FROM usuarios WHERE username = %s"
             cursor.execute(query, (username,))
             user = cursor.fetchone()
-
+            for i in user:
+                print(i)
             if user:
                 stored_password = user[2]
                 
                 if input_password == stored_password:
                     self.user_info['ID'] = user[0]
                     self.user_info['USERNAME'] = user[1]
-                    self.user_info['PERFIL'] = user[3]
-                    self.user_info['NOMBRE'] = user[4]
+                    self.user_info['NOMBRE'] = user[3]
+                    self.user_info['PERFIL'] = user[4]
+                    
                     self.root.destroy()
                     menu = Menu(self.user_info)
                     menu.open_main_menu()
@@ -59,5 +62,6 @@ class Login:
 
         except Exception as e:
             messagebox.showerror("Error de conexión", f"No se pudo conectar a la base de datos.\nError: {e}")
+            print(e)
 
 
