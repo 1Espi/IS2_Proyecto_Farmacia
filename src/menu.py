@@ -5,6 +5,8 @@ from .compras import ComprasFrame
 from .ventas import VentasFrame
 from .clientes import ClientesFrame
 from .usuarios import UsuariosFrame
+from .articulos import ArticulosFrame
+from .reabastecimiento import ReabastecimientoFrame
 
 class Menu:
     def __init__(self, user_info):
@@ -25,7 +27,7 @@ class Menu:
         self.menu_frame.pack(side="top", fill="x")
 
         # Etiqueta de bienvenida
-        self.welcome_label = tk.Label(self.container, text=f'Hola {self.user_info["NOMBRE"]}', font=("Arial", 16))
+        self.welcome_label = tk.Label(self.container, text=f'Hola {self.user_info["NOMBREUSUARIO"]}', font=("Arial", 16))
         self.welcome_label.pack(pady=20)
 
         # Crear botones para el menú
@@ -36,12 +38,12 @@ class Menu:
     def create_menu_buttons(self):
         # Diccionario de acciones según el perfil del usuario
         profile_actions = {
-            "admin": ["Almacen", "Compras", "Ventas", "Clientes", "Usuarios", "Cerrar Sesion"],
-            "gerente": ["Ventas", "Clientes", "Cerrar Sesion"],
-            "cajero": ["Ventas", "Cerrar Sesion"]
+            "admin": ["Articulos", "Almacen", "Compras", "Ventas", "Clientes", "Usuarios", "Cerrar Sesion", "Reabastecimiento"],
+            "gerente": ["Articulos", "Ventas", "Clientes", "Cerrar Sesion"],
+            "cajero": [ "Articulos", "Ventas", "Cerrar Sesion"]
         }
 
-        actions = profile_actions.get(self.user_info["PERFIL"].lower())
+        actions = profile_actions.get(self.user_info["ROL"].lower())
         if actions:
             for action in actions:
                 button = tk.Button(self.menu_frame, text=action, command=lambda a=action: self.handle_menu_action(a))
@@ -64,13 +66,21 @@ class Menu:
 
         # Inicializa el frame correspondiente
         frame_class = {
-            "Almacen": AlmacenFrame,
-            "Compras": ComprasFrame,
+            "Articulos": ArticulosFrame,
+            "Comprasss": ComprasFrame,
             "Ventas": VentasFrame,
             "Clientes": ClientesFrame,
-            "Usuarios": UsuariosFrame
+            "Usuarios": UsuariosFrame,
+            "Almacen": AlmacenFrame,
+           "Reabastecimiento": ReabastecimientoFrame
         }.get(action)
-
+        
         if frame_class:
-            self.current_frame = frame_class(self, self.container)
+            if action == "Reabastecimiento":
+                # Pasar self.user_info cuando sea Reabastecimiento
+                self.current_frame = frame_class(self, self.container, self.user_info)
+            else:
+                self.current_frame = frame_class(self, self.container)
             self.current_frame.pack(fill="both", expand=True)  # Mostrar el nuevo frame
+
+        

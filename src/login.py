@@ -3,6 +3,7 @@ from tkinter import messagebox, ttk
 import utilities.connection as dbconn
 from .menu import Menu
 
+
 class Login:
     def __init__(self):
         self.root = tk.Tk()
@@ -27,27 +28,29 @@ class Login:
         self.root.mainloop()
 
     def login(self):
-        username = self.entry_username.get()
-        print(username)
-        input_password = self.entry_password.get()
+        # username = self.entry_username.get()
+        # input_password = self.entry_password.get()
+        
+        username = 'zuzuky'
+        input_password = '123'
 
         try:
             con = dbconn.connection()
             connection = con.open()
             cursor = connection.cursor()
-            query = "SELECT * FROM usuarios WHERE username = %s"
+            query = "SELECT * FROM usuarios WHERE nombreUsuario = %s"
             cursor.execute(query, (username,))
             user = cursor.fetchone()
             for i in user:
                 print(i)
             if user:
-                stored_password = user[2]
+                stored_password = user[1]
                 
                 if input_password == stored_password:
                     self.user_info['ID'] = user[0]
-                    self.user_info['USERNAME'] = user[1]
-                    self.user_info['NOMBRE'] = user[3]
-                    self.user_info['PERFIL'] = user[4]
+                    self.user_info['NOMBREUSUARIO'] = user[2]
+                    self.user_info['ROL'] = user[3]
+                   
                     
                     self.root.destroy()
                     menu = Menu(self.user_info)

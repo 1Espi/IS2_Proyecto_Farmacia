@@ -13,10 +13,23 @@ class AlmacenFrame(tk.Frame):
         self.setup_ui()
 
     def setup_ui(self):
+        try:
+            con = dbconn.connection()
+            connection = con.open()
+            cursor = connection.cursor()
+            query = "SELECT * FROM articulos"
+            cursor.execute(query)
+            result = cursor.fetchall()
+            lista = []
+            
+            for i in result:
+                lista.append(i[0])
+        except:
+            pass
         title = tk.Label(self, text="Gestión de Almacén", font=("Helvetica", 16, "bold"))
         title.grid(row=0, column=0, columnspan=4, pady=10)
 
-        tk.Label(self, text="Buscar por ID de Producto").grid(row=1, column=0, sticky='w', padx=10, pady=5)
+        tk.Label(self, text="Buscar por ID de Almacen").grid(row=1, column=0, sticky='w', padx=10, pady=5)
         self.entry_id = tk.Entry(self)
         self.entry_id.grid(row=1, column=1, pady=5, padx=10)
        
@@ -25,13 +38,14 @@ class AlmacenFrame(tk.Frame):
         self.buscar.grid(row=1, column=2, padx=10)
 
        
-        tk.Label(self, text="ID del Producto").grid(row=2, column=0, sticky='w', padx=10, pady=5)
-        self.id= tk.Entry(self, state='readonly')  
-        self.id.grid(row=2, column=1, pady=5, padx=10)
+        tk.Label(self, text="ID del Almacen").grid(row=2, column=0, sticky='w', padx=10, pady=5)
+        self.id_almacen= tk.Entry(self, state='readonly')  
+        self.id_almacen.grid(row=2, column=1, pady=5, padx=10)
 
-        tk.Label(self, text="Nombre del Producto").grid(row=3, column=0, sticky='w', padx=10, pady=5)
-        self.nombre = tk.Entry(self)
-        self.nombre.grid(row=3, column=1, pady=5, padx=10)
+        tk.Label(self, text="ID del articulo").grid(row=3, column=0, sticky='w', padx=10, pady=5)
+        estado_options = lista
+        self.id_articulo = ttk.Combobox(self, values=estado_options)
+        self.id_articulo.grid(row=3, column=1, pady=5, padx=10)
 
         tk.Label(self, text="Cantidad").grid(row=4, column=0, sticky='w', padx=10, pady=5)
         self.cantidad = tk.Entry(self)
@@ -44,10 +58,6 @@ class AlmacenFrame(tk.Frame):
         tk.Label(self, text="Maximos").grid(row=6, column=0, sticky='w', padx=10, pady=5)
         self.max = tk.Entry(self)
         self.max.grid(row=6, column=1, pady=5, padx=10)
-
-        tk.Label(self, text="Estado").grid(row=7, column=0, sticky='w', padx=10, pady=5)
-        self.status = ttk.Combobox(self, values=["Disponible", "Agotado"])
-        self.status.grid(row=7, column=1, pady=5, padx=10)
 
         button_frame = tk.Frame(self)
         button_frame.grid(row=8, column=0, columnspan=4, pady=20)
@@ -71,127 +81,133 @@ class AlmacenFrame(tk.Frame):
         self.limpiar_campos()
         
     def buscar(self):
-        producto_id = self.entry_id.get()
-        self.id.config(state='normal')
+        id = self.entry_id.get()
+        self.id_almacen.config(state='normal')
         try:
             con = dbconn.connection()
             connection = con.open()
             cursor = connection.cursor()
-            query = "SELECT  * from almacen  WHERE id = %s"
-            cursor.execute(query, (producto_id,))
+            query = "SELECT  * from almacen  WHERE id_almacen = %s"
+            cursor.execute(query, (id,))
             result = cursor.fetchone()
             
             if result:
-                self.id.delete(0, tk.END)
-                self.id.insert(0, result[0])
-                self.id.config(state='disabled') 
-                self.nombre.delete(0, tk.END)
-                self.nombre.insert(0, result[1])
+                self.id_almacen.delete(0, tk.END)
+                self.id_almacen.insert(0, result[0])
+                self.id_almacen.config(state='disabled') 
+                self.id_articulo.delete(0, tk.END)
+                self.id_articulo.insert(0, result[1])
                 self.cantidad.delete(0, tk.END)
                 self.cantidad.insert(0, result[2])
                 self.min.delete(0, tk.END)
                 self.min.insert(0, result[3])
                 self.max.delete(0, tk.END)
                 self.max.insert(0, result[4])
-                self.status.delete(0, tk.END)
-                self.status.insert(0, result[5])
             else:
-                messagebox.showerror("Error", "Producto no encontrado")
+                messagebox.showerror("Error", "El id del almacen se encontro")
                 self.limpiar_campos()
                 
         except:
-            messagebox.showerror("Error", "Producto no encontrado")
+            messagebox.showerror("Error", "El id del almacen no se encontro")
             self.limpiar_campos()
 
     def crear(self):
-        id = self.id.get()
-        nombre = self.nombre.get()
+        id_almacen = self.id_almacen.get()
+        id_articulo = self.id_articulo.get()
         cantidad = self.cantidad.get()
         minimo = self.min.get()
         maximo = self.max.get()
         
-        if not cantidad <= minimo:
-            status = '{"Disponible"}'
-        else:
-            status = '{"Agotado"}'
-        if id:
+        if id_almacen:
             messagebox.showerror("Error", "Debes presionar primero nuevo")
             return
-        if not nombre or not cantidad or not minimo or not maximo or not status:
+        if not id_articulo or not cantidad or not minimo or not maximo:
             messagebox.showerror("Error", "Todos los campos son obligatorios")
             return
         
         try:
             con = dbconn.connection()
             connection = con.open()
-            cursor = connection.cursor()
-            query = "INSERT INTO almacen (nombre, cantidad,  mininmo, maximo, disponible) VALUES (%s, %s, %s, %s, %s)"
-            valores = (nombre, cantidad, minimo, maximo, status)
-            cursor.execute(query, valores)
-            connection.commit()
+            cursor3 = connection.cursor()
+            query3 = "SELECT  * from articulos  WHERE id_articulo = %s"
+            cursor3.execute(query3, (id_articulo,))
+            result2 = cursor3.fetchone()
+            if not result2:
+                messagebox.showerror("Error", "Este articulo no existe")
+                return
             
-            messagebox.showinfo("Éxito", "Producto guardado exitosamente")
-            self.limpiar_campos() 
+            else:
+            
+                con = dbconn.connection()
+                connection = con.open()
+                cursor2 = connection.cursor()
+                query2 = "SELECT  * from almacen  WHERE id_articulo = %s"
+                cursor2.execute(query2, (id_articulo,))
+                result = cursor2.fetchone()
+                if result:
+                    messagebox.showerror("Error", "Este articulo ya esta ingresado en el almacen")
+                    return
+                else:
+                    con = dbconn.connection()
+                    connection = con.open()
+                    cursor = connection.cursor()
+                    query = "INSERT INTO almacen (id_articulo, cantidad, minimo, maximo) VALUES (%s, %s, %s, %s)"
+                    valores = (id_articulo, cantidad, minimo, maximo)
+                    cursor.execute(query, valores)
+                    connection.commit()
+                    
+                    messagebox.showinfo("Éxito", "El articulo se guardo exitosamente en el almacen")
+                    self.limpiar_campos() 
+ 
         except:
-            messagebox.showinfo("Éxito", "Producto no guardado")
-        """
-        except connection as err:
-            messagebox.showerror("Error", f"Error al guardar el usuario: {err}")
-            print(f"Error al guardar el usuario: {err}")"""
+            messagebox.showinfo("Éxito", "El articulo no se guardo exitosamente en el almacen")
+        
     def modificar(self):
         id = self.entry_id.get()
-        nombre = self.nombre.get()
+        id_articulo = self.id_articulo.get()
         cantidad = self.cantidad.get()
         minimo = self.min.get()
         maximo = self.max.get()
-        status = self.status.get()
-        if status == "Disponible":
-            status = '{"Disponible"}'
-        else:
-            status = '{"Agotado"}'
 
-        if not nombre or not cantidad or not minimo or not maximo or not status or not id:
+        if not id_articulo or not cantidad or not minimo or not maximo:
             messagebox.showerror("Error", "Todos los campos son obligatorios")
             return
         try:
             con = dbconn.connection()
             connection = con.open()
             cursor = connection.cursor()
-            query = "UPDATE almacen SET  nombre = %s, cantidad = %s,  mininmo = %s, maximo = %s, disponible = %s WHERE id = %s"
-            valores = (nombre, cantidad, minimo, maximo, status, id)
+            query = "UPDATE almacen SET  id_articulo = %s, cantidad = %s,  minimo = %s, maximo = %s  WHERE id_almacen = %s"
+            valores = (id_articulo, cantidad, minimo, maximo, id)
             cursor.execute(query, valores)
             connection.commit()
             
-            messagebox.showinfo("Éxito", "Producto actualizado exitosamente")
+            messagebox.showinfo("Éxito", "El articulo se actualizo exitosamente  en el almacen")
             self.limpiar_campos() 
             
         except:
-            messagebox.showinfo("Éxito", "Producto no actualizado")
+            messagebox.showinfo("Éxito", "El articulo no se actualizo exitosamente  en el almacen")
         
       
     def eliminar(self):
-        id = self.id.get()
+        id = self.entry_id.get()
         try:
             con = dbconn.connection()
             connection = con.open()
             cursor = connection.cursor()
-            query = "DELETE FROM almacen WHERE id = %s"
+            query = "DELETE FROM almacen WHERE id_almacen = %s"
             cursor.execute(query, (id,))
             connection.commit()
-            messagebox.showinfo("Éxito", "Producto eliminado exitosamente")
+            messagebox.showinfo("Éxito", "El articulo se elimino exitosamente  en el almacen")
             self.limpiar_campos() 
         except:
-            messagebox.showinfo("Éxito", "Producto no eliminado")
+            messagebox.showinfo("Éxito", "El articulo no se elimino exitosamente  en el almacen")
     def cancelar(self):
         self.limpiar_campos(self)
     def limpiar_campos(self):
-        self.id.config(state='normal') 
-        self.status.config(state='normal') 
-        self.id.delete(0, tk.END)
-        self.nombre.delete(0, tk.END)
+        self.id_almacen.config(state='normal') 
+        self.id_almacen.delete(0, tk.END)
+        self.id_articulo.delete(0, tk.END)
         self.cantidad.delete(0, tk.END)
         self.min.delete(0, tk.END)
         self.max.delete(0, tk.END)
-        self.status.delete(0, tk.END)
-        self.id.config(state='disabled') 
-        self.status.config(state='disabled') 
+        self.id_almacen.config(state='disabled') 

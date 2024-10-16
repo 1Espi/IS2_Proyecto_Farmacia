@@ -111,10 +111,7 @@ class ArticulosFrame(tk.Frame):
             self.limpiar_campos() 
         except:
             messagebox.showinfo("Éxito", "Articulo no guardado")
-        """
-        except connection as err:
-            messagebox.showerror("Error", f"Error al guardar el usuario: {err}")
-            print(f"Error al guardar el usuario: {err}")"""
+    
     def modificar(self):
         id = self.entry_id.get()
         nombre = self.nombre.get()
