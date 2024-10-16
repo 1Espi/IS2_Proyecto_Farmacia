@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import utilities.connection as dbconn  # Conexión gestionada por .env
+import utilities.connection as dbconn  
 
 class ClientesFrame(tk.Frame):
     def __init__(self, parent, container):
@@ -11,10 +11,10 @@ class ClientesFrame(tk.Frame):
         self.update_buttons_state("initial")  # Estado inicial de los botones
 
     def connect_db(self):
-        # Conexión usando utilities.connection
+        
         try:
             con = dbconn.connection()
-            connection = con.open()  # Método open() para abrir la conexión desde la utilidad
+            connection = con.open()  
             return connection
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo conectar a la base de datos: {e}")
