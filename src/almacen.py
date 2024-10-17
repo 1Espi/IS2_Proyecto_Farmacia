@@ -13,6 +13,7 @@ class AlmacenFrame(tk.Frame):
         self.setup_ui()
 
     def setup_ui(self):
+        lista = []
         try:
             con = dbconn.connection()
             connection = con.open()
@@ -20,7 +21,6 @@ class AlmacenFrame(tk.Frame):
             query = "SELECT * FROM articulos"
             cursor.execute(query)
             result = cursor.fetchall()
-            lista = []
             
             for i in result:
                 lista.append(i[0])

@@ -5,7 +5,7 @@ from datetime import datetime
 import utilities.connection as dbconn
 from .mostrar_compra import MostrarCompra
 from tkinter import END, messagebox, ttk
-
+from .proveedores import Proveedores
 
 class ReabastecimientoFrame(tk.Frame):
     def __init__(self, parent, container, user_info):
@@ -26,6 +26,8 @@ class ReabastecimientoFrame(tk.Frame):
             
             for i in result:
                 lista.append(i[0])
+                
+            query 
         except:
             pass
             
@@ -48,6 +50,9 @@ class ReabastecimientoFrame(tk.Frame):
         estado_options = lista
         self.proveedor = ttk.Combobox(self, values=estado_options)
         self.proveedor.grid(row=3, column=1, pady=5, padx=10)
+        
+        self.prov_button = tk.Button(self, text="Proveedores", width=10, command=self.abrir_proveedores)
+        self.prov_button.grid(row=3, column=2, pady=5, padx=10)
 
         tk.Label(self, text="Id Usuario").grid(row=4, column=0, sticky='w', padx=10, pady=5)
         self.usuario = tk.Entry(self)
@@ -225,3 +230,5 @@ class ReabastecimientoFrame(tk.Frame):
         self.monto.delete(0, tk.END)       
         self.id.config(state='disabled') 
         
+    def abrir_proveedores(self):
+        Proveedores()

@@ -167,7 +167,7 @@ class VentasFrame(tk.Frame):
 
     def get_product_list(self):
         cursor = self.connection.cursor()
-        cursor.execute("SELECT id_articulo, nombre FROM articulos")
+        cursor.execute("SELECT almacen.id_articulo, nombre FROM articulos LEFT JOIN almacen ON articulos.id_articulo=almacen.id_articulo WHERE almacen.cantidad > 0")
         products = cursor.fetchall()
         self.products_dict = {name: id_art for id_art, name in products}
         return list(self.products_dict.keys())

@@ -27,7 +27,7 @@ class Menu:
         self.menu_frame.pack(side="top", fill="x")
 
         # Etiqueta de bienvenida
-        self.welcome_label = tk.Label(self.container, text=f'Hola {self.user_info["NOMBREUSUARIO"]}', font=("Arial", 16))
+        self.welcome_label = tk.Label(self.container, text=f'Hola {self.user_info["NOMBRE"]}', font=("Arial", 16))
         self.welcome_label.pack(pady=20)
 
         # Crear botones para el menú
@@ -38,12 +38,12 @@ class Menu:
     def create_menu_buttons(self):
         # Diccionario de acciones según el perfil del usuario
         profile_actions = {
-            "admin": ["Articulos", "Almacen", "Compras", "Ventas", "Clientes", "Usuarios", "Cerrar Sesion", "Reabastecimiento"],
+            "admin": ["Articulos", "Almacen", "Compras", "Reabastecimiento", "Ventas", "Clientes", "Usuarios", "Cerrar Sesion"],
             "gerente": ["Articulos", "Ventas", "Clientes", "Cerrar Sesion"],
             "cajero": [ "Articulos", "Ventas", "Cerrar Sesion"]
         }
 
-        actions = profile_actions.get(self.user_info["ROL"].lower())
+        actions = profile_actions.get(self.user_info["PERFIL"].lower())
         if actions:
             for action in actions:
                 button = tk.Button(self.menu_frame, text=action, command=lambda a=action: self.handle_menu_action(a))
@@ -67,7 +67,7 @@ class Menu:
         # Inicializa el frame correspondiente
         frame_class = {
             "Articulos": ArticulosFrame,
-            "Comprasss": ComprasFrame,
+            "Compras": ComprasFrame,
             "Ventas": VentasFrame,
             "Clientes": ClientesFrame,
             "Usuarios": UsuariosFrame,

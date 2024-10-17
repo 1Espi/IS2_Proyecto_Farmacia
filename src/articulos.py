@@ -54,9 +54,24 @@ class ArticulosFrame(tk.Frame):
 
         self.cancel_button = tk.Button(button_frame, text="Cancelar", command=self.cancelar, width=10)
         self.cancel_button.grid(row=0, column=4, padx=10)
+        self.cancelar()
         
     def nuevo(self):
         self.limpiar_campos()
+        self.id.config(state='normal')  
+        connection = dbconn.connection().open()
+        cursor = connection.cursor()
+        cursor.execute("SELECT COALESCE(MAX(id_articulo), 0) + 1 FROM articulos")
+        id_articulo = cursor.fetchone()
+        self.id.delete(0, tk.END)
+        self.id.insert(0, id_articulo)
+        self.id.config(state='disabled') 
+        
+        self.nuevo_button.config(state="disabled")
+        self.create_button.config(state="normal")
+        self.update_button.config(state="disabled")
+        self.delete_button.config(state="disabled")
+        self.cancel_button.config(state="normal")
         
     def buscar(self):
         id = self.entry_id.get()
@@ -77,6 +92,12 @@ class ArticulosFrame(tk.Frame):
                 self.nombre.insert(0, result[1])
                 self.precio.delete(0, tk.END)
                 self.precio.insert(0, result[2])
+                
+                self.nuevo_button.config(state="disabled")
+                self.create_button.config(state="disabled")
+                self.update_button.config(state="normal")
+                self.delete_button.config(state="normal")
+                self.cancel_button.config(state="normal")
               
             else:
                 messagebox.showerror("Error", "Articulo no encontrado")
@@ -90,11 +111,8 @@ class ArticulosFrame(tk.Frame):
         id = self.id.get()
         nombre = self.nombre.get()
         precio = self.precio.get()
-        
-        if id:
-            messagebox.showerror("Error", "Debes presionar primero nuevo")
-            return
-        if not nombre or not precio:
+
+        if not nombre or not precio or not id:
             messagebox.showerror("Error", "Todos los campos son obligatorios")
             return
         
@@ -130,10 +148,10 @@ class ArticulosFrame(tk.Frame):
             connection.commit()
             
             messagebox.showinfo("Éxito", "Articulo actualizado exitosamente")
-            self.limpiar_campos() 
+            self.cancelar()
             
         except:
-            messagebox.showinfo("Éxito", "Articulo no actualizado")
+            messagebox.showerror("Error", "Articulo no actualizado")
         
     def eliminar(self):
         id = self.id.get()
@@ -145,17 +163,24 @@ class ArticulosFrame(tk.Frame):
             cursor.execute(query, (id,))
             connection.commit()
             messagebox.showinfo("Éxito", "Articulo eliminado exitosamente")
-            self.limpiar_campos() 
+            self.cancelar()
             self.entry_id.delete(0, tk.END)
-        except:
-            messagebox.showinfo("Éxito", "Articulo no eliminado")
+        except Exception as e:
+            connection.rollback()
+            messagebox.showerror("Error", f"Articulo no eliminado: {e}")
             
     def cancelar(self):
         self.limpiar_campos()
         
+        self.nuevo_button.config(state="normal")
+        self.create_button.config(state="disabled")
+        self.update_button.config(state="disabled")
+        self.delete_button.config(state="disabled")
+        self.cancel_button.config(state="normal")
+        
     def limpiar_campos(self):
         self.id.config(state='normal')  
-        self.id.delete(0, tk.END)
+        self.id.delete(0,tk.END)
         self.entry_id.delete(0, tk.END)
         self.nombre.delete(0, tk.END)
         self.precio.delete(0, tk.END)

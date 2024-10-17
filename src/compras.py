@@ -162,6 +162,5 @@ class ComprasFrame(tk.Frame):
         self.cantidad.delete(0, tk.END)
         self.precio.delete(0, tk.END)       
         self.total.delete(0, tk.END)
-        self.estado.delete(0, tk.END)
         self.folio.config(state='disabled') 
         
