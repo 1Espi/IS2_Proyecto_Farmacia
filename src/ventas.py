@@ -210,16 +210,20 @@ class VentasFrame(tk.Frame):
         client_id = self.clients_dict.get(client_name)
         cursor = self.connection.cursor()
         cursor.execute("SELECT telefono, email, puntos FROM cliente WHERE id_cliente = %s", (client_id,))
-        self.cliente_id=client_id
+        self.cliente_id = client_id
         client_data = cursor.fetchone()
         if client_data:
-            telefono, correo , puntos = client_data
+            telefono, correo, puntos = client_data
             self.entry_phone.delete(0, tk.END)
             self.entry_phone.insert(0, telefono)
             self.entry_email.delete(0, tk.END)
             self.entry_email.insert(0, correo)
             self.entry_puntos.delete(0, tk.END)
             self.entry_puntos.insert(0, puntos)
+            
+            self.puntos_cliente = puntos
+            if self.puntos_cliente >= 20:
+                messagebox.showinfo("Descuento Disponible", "Tendrás un 50% de descuento en tu compra.")
             
 
     def get_product_list(self):
@@ -285,6 +289,10 @@ class VentasFrame(tk.Frame):
             except ValueError:
                 messagebox.showerror("Error", "Por favor, ingresa un precio válido.")
                 return
+
+            # Aplicar el descuento del 50% si el cliente tiene 20 puntos
+            if self.puntos_cliente >= 20:
+                price *= 0.5
 
             importe = quantity * price
             self.treeview.insert('', 'end', values=(str(product_id), product_name, price, quantity, importe))
@@ -373,7 +381,16 @@ class VentasFrame(tk.Frame):
 
             # Obtener información de la compra
             subtotal = float(self.entry_subtotal.get())
-            descuento = 0  
+            if self.puntos_cliente >= 20:
+                descuento = 50  
+                self.puntos_cliente -= 20  
+                self.update_cliente_puntos(aplicar_descuento=True)  
+            else:
+                descuento = 0
+                self.puntos_acumulados += self.puntos
+                self.update_cliente_puntos(aplicar_descuento=False)  
+
+
             total = float(self.entry_total.get())
             fecha = self.entry_date.get_date()
             cliente_id = self.cliente_id
@@ -397,17 +414,16 @@ class VentasFrame(tk.Frame):
                     (id_compra, id_articulo, cantidad, subtotal_item)
                 )
 
-            # Confirmar los cambios en la base de datos
             self.connection.commit()
 
-            # Acumular puntos
-            self.puntos_acumulados += self.puntos  
-            self.update_cliente_puntos()  
+            if descuento == 0:
+                self.puntos_acumulados += self.puntos
+                self.update_cliente_puntos()  # Actualizamos los puntos del cliente en la BD si no se aplicó descuento
 
             # Preguntar al usuario si quiere ver el ticket
             response = messagebox.askyesno("Transacción Completa", f"Pago recibido. Cambio: {change:.2f}.\n\n¿Desea ver el ticket de compra?")
             if response:
-                self.show_ticket()
+                self.show_ticket(descuento)  
 
             messagebox.showinfo("Éxito", f"La venta ha sido registrada con el folio: {id_compra}")
 
@@ -416,6 +432,8 @@ class VentasFrame(tk.Frame):
         except Exception as e:
             self.connection.rollback()
             messagebox.showerror("Error", f"No se pudo completar la venta: {e}")
+
+
 
 
     def search_sale(self):
@@ -492,7 +510,7 @@ class VentasFrame(tk.Frame):
 
 
             
-    def show_ticket(self):
+    def show_ticket(self, descuento=0):
         ticket_details = "----- TICKET DE COMPRA -----\n"
         ticket_details += f"Folio: {self.entry_folio.get()}\n"
         ticket_details += f"Fecha: {self.entry_date.get_date()}\n"
@@ -505,14 +523,30 @@ class VentasFrame(tk.Frame):
         
         ticket_details += f"\nSubtotal: {self.entry_subtotal.get()}\n"
         ticket_details += f"IVA: {self.entry_iva.get()}\n"
+        
+        if descuento > 0:
+            ticket_details += f"Descuento aplicado: {descuento}%\n"
+            puntos_acumulados = 0  
+        else:
+            puntos_acumulados = self.entry_puntosAcumulados.get()  
+
         ticket_details += f"Total: {self.entry_total.get()}\n"
-        ticket_details += f"Puntos acumulados: {self.entry_puntosAcumulados.get()}\n"
+        ticket_details += f"Puntos acumulados: {puntos_acumulados}\n"
         ticket_details += "---------------------------"
 
         messagebox.showinfo("Ticket de Compra", ticket_details)
+
+
         
-    def update_cliente_puntos(self):
+    def update_cliente_puntos(self, aplicar_descuento=False):
         cursor = self.connection.cursor()
-        cursor.execute("UPDATE cliente SET puntos = puntos + %s WHERE id_cliente = %s", (self.puntos, self.cliente_id))
+
+        if aplicar_descuento:
+            # Si se aplicó descuento, restar los 20 puntos
+            cursor.execute("UPDATE cliente SET puntos = %s WHERE id_cliente = %s", (self.puntos_cliente, self.cliente_id))
+        else:
+            # Si no se aplicó descuento, acumular los nuevos puntos
+            cursor.execute("UPDATE cliente SET puntos = puntos + %s WHERE id_cliente = %s", (self.puntos, self.cliente_id))
+
         self.connection.commit()
 
