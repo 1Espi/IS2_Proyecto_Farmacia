@@ -134,6 +134,8 @@ class VentasFrame(tk.Frame):
         self.entry_payment.grid(row=13, column=1, pady=5, padx=10)
         self.pay_button = tk.Button(self, text="Pagar", command=self.process_payment)
         self.pay_button.grid(row=13, column=2, padx=5)
+        self.cancel_button = tk.Button(self, text="Cancelar compra", command=self.cancel_sale)
+        self.cancel_button.grid(row=13, column=3, padx=5)
 
     def create_sale(self):
         pass
@@ -144,6 +146,58 @@ class VentasFrame(tk.Frame):
     def delete_sale(self):
         pass
 
+    def cancel_sale(self):
+        # Obtener la lista de productos en el Treeview
+        items = self.treeview.get_children()
+        
+        if not items:
+            messagebox.showinfo("Información", "No hay ventas que cancelar.")
+            return
+        
+        # Conectar a la base de datos
+        cursor = self.connection.cursor()
+        
+        for item in items:
+            item_values = self.treeview.item(item, 'values')
+            product_id = int(item_values[0])  # ID del producto
+            quantity = int(item_values[3])  # Cantidad de producto en la venta
+
+            # Actualizar el stock en la base de datos
+            cursor.execute(
+                "UPDATE almacen SET cantidad = cantidad + %s WHERE id_articulo = %s",
+                (quantity, product_id)
+            )
+        
+        # Confirmar los cambios en la base de datos
+        self.connection.commit()
+        
+        # Limpiar los campos (excepto el nombre de usuario)
+        self.entry_folio.config(state='normal')
+        self.entry_folio.delete(0, tk.END)
+        self.entry_date.set_date(datetime.now())
+        self.combo_client.set('')
+        self.entry_phone.delete(0, tk.END)
+        self.entry_email.delete(0, tk.END)
+        self.entry_puntos.delete(0, tk.END)
+        self.combo_product.set('')
+        self.entry_price.delete(0, tk.END)
+        self.entry_stock.delete(0, tk.END)
+        self.entry_quantity.delete(0, tk.END)
+
+        # Limpiar el Treeview
+        for item in self.treeview.get_children():
+            self.treeview.delete(item)
+        
+        # Reiniciar el subtotal, IVA y total
+        self.entry_subtotal.delete(0, tk.END)
+        self.entry_iva.delete(0, tk.END)
+        self.entry_total.delete(0, tk.END)
+        self.entry_puntosAcumulados.delete(0, tk.END)
+        self.entry_payment.delete(0, tk.END)
+        
+        messagebox.showinfo("Información", "La venta ha sido cancelada")
+
+        
     def get_client_list(self):
         cursor = self.connection.cursor()
         cursor.execute("SELECT id_cliente, nombre FROM cliente")
