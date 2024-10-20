@@ -35,7 +35,10 @@ CREATE TABLE reabastecimientos ( --Zuzuky
 CREATE TABLE articulos ( --Zuzuky
     id_articulo bigserial PRIMARY KEY,
     nombre varchar(100),
-    precio float
+    precio float,
+    cantidad bigint,
+    maximos bigint,
+    minimos bigint
 );
 
 CREATE TABLE articulos_reabastecimientos ( --Zuzuky
@@ -45,15 +48,6 @@ CREATE TABLE articulos_reabastecimientos ( --Zuzuky
     subtotal bigint,
     FOREIGN KEY (id_articulo) REFERENCES articulos(id_articulo),
     FOREIGN KEY (id_reabastecimiento) REFERENCES reabastecimientos(id_reabastecimiento)
-);
-
-CREATE TABLE almacen ( --Zuzuky
-    id_almacen bigserial PRIMARY KEY,
-    id_articulo bigint,
-    cantidad bigint,
-    minimo bigint,
-    maximo bigint,
-    FOREIGN KEY (id_articulo) REFERENCES articulos(id_articulo)
 );
 
 CREATE TABLE compras ( --Angel

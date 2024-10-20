@@ -41,9 +41,9 @@ class Menu:
     def create_menu_buttons(self):
         # Diccionario de acciones según el perfil del usuario
         profile_actions = {
-            "admin": ["Articulos", "Almacen", "Compras", "Reabastecimiento", "Ventas", "Clientes", "Usuarios"],
+            "admin": ["Articulos", "Compras", "Reabastecimiento", "Ventas", "Clientes", "Usuarios"],
             "gerente": ["Articulos", "Ventas", "Clientes"],
-            "cajero": ["Articulos", "Ventas"]
+            "cajero": ["Ventas", "Clientes"]
         }
 
         # Obtener las acciones permitidas según el perfil del usuario
