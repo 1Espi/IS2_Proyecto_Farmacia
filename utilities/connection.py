@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 import psycopg2
+from tkinter import messagebox
 
 class connection:
     def __init__(self) -> None:
@@ -24,14 +25,12 @@ class connection:
     
     def close(self):
         self.conn.close()
-        
-"""
-    EJEMPLO DE USO
-    
-            con = dbconn.connection()
-            connection = con.open()
-            cursor = connection.cursor()
-            query = "SELECT * FROM usuarios WHERE username = %s"
-            cursor.execute(query, (username))
-            user = cursor.fetchone() #DEVUELVE UNA LISTA CON LA INFO DE LAS TABLAS
-"""
+
+def connect_db():
+    try:
+        db_instance: connection = connection()
+        conn = db_instance.open() 
+        return conn
+    except Exception as e:
+        messagebox.showerror("Error", f"No se pudo conectar a la base de datos: {e}")
+        return None
