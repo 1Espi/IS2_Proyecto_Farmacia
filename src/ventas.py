@@ -9,6 +9,7 @@ class VentasFrame(tk.Frame):
         super().__init__(container)
         self.parent = parent
         self.connection = self.connect_db() 
+        self.user_profile = self.parent.user_info['PERFIL']  # Asegúrate de que 'PROFILE' esté en la información del usuario
         self.setup_ui()
         self.subtotal = 0.0
         self.iva_rate = 0.16  # 16% IVA
@@ -154,6 +155,14 @@ class VentasFrame(tk.Frame):
         self.modify_button.config(state="disabled")
         self.delete_button.config(state="disabled")
         
+                # Configuración de botones según el perfil
+    # Configuración de botones según el perfil
+        if self.user_profile.lower() == 'cajero':
+            self.modify_button.grid_forget()  # Ocultar botón de modificar
+            self.delete_button.grid_forget()  # Ocultar botón de eliminar
+        else:
+            self.modify_button.grid(row=1, column=4, padx=5, pady=5)  # Mostrar botón de modificar
+            self.delete_button.grid(row=1, column=5, padx=5, pady=5)  # Mostrar botón de eliminar
     def toggle_form(self, state="normal"):
         fields = [
             self.entry_folio, self.entry_date, self.combo_client, self.entry_phone, 
@@ -531,14 +540,13 @@ class VentasFrame(tk.Frame):
             else:
                 messagebox.showinfo("No encontrado", "No se encontró una venta con el folio especificado.")
                 self.clear_all()  # Limpia todos los campos si no se encuentra la venta
-                return  # Asegúrate de salir de la función aquí
+                return 
 
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo realizar la búsqueda: {e}")
             self.clear_all()  # Limpia todos los campos en caso de error
         
         finally:
-            # Deshabilitar todos los campos excepto treeview y botones específicos
             self.toggle_form(state="disabled")
             self.entry_folio.config(state="normal")
             self.search_folio_entry.config(state="normal")
@@ -802,8 +810,9 @@ class VentasFrame(tk.Frame):
             response = messagebox.askyesno("Transacción Completa", f"Pago recibido. Cambio: {change:.2f}.\n\n¿Desea ver el ticket de compra?")
             if response:
                 self.show_ticket(descuento)  
-
+            
             messagebox.showinfo("Éxito", f"La venta ha sido registrada con el folio: {id_compra}")
+            self.clear_all()
 
         except ValueError:
             messagebox.showerror("Error", "Por favor, ingrese un monto de pago válido.")

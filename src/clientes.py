@@ -6,6 +6,7 @@ class ClientesFrame(tk.Frame):
     def __init__(self, parent, container):
         super().__init__(container)
         self.parent = parent
+        self.user_profile = self.parent.user_info['PERFIL']  # Asegúrate de que 'PROFILE' esté en la información del usuario
         self.setup_ui()
         self.connection = self.connect_db()
         self.update_buttons_state("initial")  # Estado inicial de los botones
@@ -68,6 +69,15 @@ class ClientesFrame(tk.Frame):
 
         self.cancel_button = tk.Button(button_frame, text="Cancelar", width=10, command=self.cancel, state='disabled')
         self.cancel_button.grid(row=0, column=4, padx=10)
+            # Configuración de botones según el perfil
+        if self.user_profile.lower() == 'cajero':
+            self.update_button.grid_forget()  # Ocultar botón de modificar
+            self.delete_button.grid_forget()  # Ocultar botón de eliminar
+        else:
+            self.update_button.grid(row=0, column=2, padx=10)
+            self.delete_button.grid(row=0, column=3, padx=10)
+
+
 
     def update_buttons_state(self, state):
         if state == "initial":
