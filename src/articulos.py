@@ -231,8 +231,8 @@ class ArticulosFrame(tk.Frame):
   
     def cargar_articulos(self):
         try:
-            dbconn = connfile.connect_db()
-            cursor = dbconn.cursor()
+            connection = connfile.connect_db()
+            cursor = connection.cursor()
             
             query = "SELECT * FROM articulos ORDER BY id_articulo"
             cursor.execute(query)
@@ -242,7 +242,7 @@ class ArticulosFrame(tk.Frame):
                         
             for articulo in self.lista_articulos:
                 self.treeview.insert(parent='', index='end', iid=articulo[0], values=(articulo[0],articulo[1],articulo[2], articulo[3], articulo[4], articulo[5]))
-            pass
+            
         except Exception as e:
             messagebox.showerror("Error", f'No se pudieron cargar los articulos:\n{e}')
             

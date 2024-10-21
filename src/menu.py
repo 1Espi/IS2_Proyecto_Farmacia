@@ -1,12 +1,10 @@
 import tkinter as tk
 from tkinter import messagebox
-from .almacen import AlmacenFrame
-from .compras import ComprasFrame
+from .articulos import ArticulosFrame
+from .reabastecimiento import ReabastecimientoFrame
 from .ventas import VentasFrame
 from .clientes import ClientesFrame
 from .usuarios import UsuariosFrame
-from .articulos import ArticulosFrame
-from .reabastecimiento import ReabastecimientoFrame
 
 class Menu:
     def __init__(self, user_info):
@@ -41,7 +39,7 @@ class Menu:
     def create_menu_buttons(self):
         # Diccionario de acciones según el perfil del usuario
         profile_actions = {
-            "admin": ["Articulos", "Compras", "Reabastecimiento", "Ventas", "Clientes", "Usuarios"],
+            "admin": ["Articulos", "Reabastecimiento", "Ventas", "Clientes", "Usuarios"],
             "gerente": ["Articulos", "Ventas", "Clientes"],
             "cajero": ["Ventas", "Clientes"]
         }
@@ -80,18 +78,15 @@ class Menu:
         # Inicializa el frame correspondiente
         frame_class = {
             "Articulos": ArticulosFrame,
-            "Compras": ComprasFrame,
+            "Reabastecimiento": ReabastecimientoFrame,
             "Ventas": VentasFrame,
             "Clientes": ClientesFrame,
             "Usuarios": UsuariosFrame,
-            "Almacen": AlmacenFrame,
-           "Reabastecimiento": ReabastecimientoFrame
         }.get(action)
         
         if frame_class:
             if action == "Reabastecimiento":
-                # Pasar self.user_info cuando sea Reabastecimiento
-                self.current_frame = frame_class(self, self.container, self.user_info)
+                self.current_frame = frame_class(self, self.container)
             else:
                 self.current_frame = frame_class(self, self.container)
             self.current_frame.pack(fill="both", expand=True)  # Mostrar el nuevo frame

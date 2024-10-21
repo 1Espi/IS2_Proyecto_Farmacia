@@ -17,9 +17,9 @@ CREATE TABLE cliente ( --Angel
 
 CREATE TABLE proveedores ( --Balam
     id_proveedor bigserial PRIMARY KEY,
-    compañia varchar(100),
-    telefono int,
-    correo varchar(50)
+    compania varchar(100),
+    telefono varchar(11),
+    correo varchar(70)
 );
 
 CREATE TABLE reabastecimientos ( --Zuzuky
@@ -45,7 +45,8 @@ CREATE TABLE articulos_reabastecimientos ( --Zuzuky
     id_reabastecimiento bigint,
     id_articulo bigint,
     cantidad bigint,
-    subtotal bigint,
+    precio_unitario float,
+    subtotal float,
     FOREIGN KEY (id_articulo) REFERENCES articulos(id_articulo),
     FOREIGN KEY (id_reabastecimiento) REFERENCES reabastecimientos(id_reabastecimiento)
 );
@@ -69,11 +70,4 @@ CREATE TABLE articulos_compras ( --Balam
     subtotal float,
     FOREIGN KEY (id_articulo) REFERENCES articulos(id_articulo),
     FOREIGN KEY (id_compra) REFERENCES compras(id_compra)
-);
-
-CREATE TABLE proveedores_articulos ( --Balam
-    id_proveedor bigint,
-    id_articulo bigint,
-    FOREIGN KEY (id_proveedor) REFERENCES proveedores(id_proveedor),
-    FOREIGN KEY (id_articulo) REFERENCES articulos(id_articulo)
 );
