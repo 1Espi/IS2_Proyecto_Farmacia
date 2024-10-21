@@ -288,7 +288,6 @@ class VentasFrame(tk.Frame):
                     VALUES (%s, %s, %s, %s)
                 """, (id_compra, product_id, new_quantity, new_subtotal_item))
 
-            self.connection.commit()
 
             # Actualizar puntos del cliente si es necesario
             if diferencia_puntos != 0:
@@ -300,6 +299,7 @@ class VentasFrame(tk.Frame):
 
                 self.connection.commit()
 
+            self.connection.commit()
             messagebox.showinfo("Éxito", "La venta ha sido modificada con éxito.")
             self.clear_fields()
             self.clear_all()
@@ -595,7 +595,7 @@ class VentasFrame(tk.Frame):
 
     def get_product_list(self):
         cursor = self.connection.cursor()
-        cursor.execute("SELECT almacen.id_articulo, nombre FROM articulos LEFT JOIN almacen ON articulos.id_articulo=almacen.id_articulo WHERE almacen.cantidad > 0")
+        cursor.execute("SELECT id_articulo, nombre FROM articulos WHERE cantidad > 0")
         products = cursor.fetchall()
         self.products_dict = {name: id_art for id_art, name in products}
         return list(self.products_dict.keys())
@@ -606,7 +606,7 @@ class VentasFrame(tk.Frame):
         product_name = self.combo_product.get()
         product_id = self.products_dict.get(product_name)
         cursor = self.connection.cursor()
-        cursor.execute("SELECT precio, almacen.cantidad FROM articulos LEFT JOIN almacen ON articulos.id_articulo = almacen.id_articulo WHERE articulos.id_articulo = %s", (product_id,))
+        cursor.execute("SELECT precio, cantidad FROM articulos WHERE id_articulo = %s", (product_id,))
         product_data = cursor.fetchone()
         if product_data:
             precio, stock = product_data
@@ -633,7 +633,7 @@ class VentasFrame(tk.Frame):
         product_id = self.products_dict.get(product_name)
 
         cursor = self.connection.cursor()
-        cursor.execute("SELECT cantidad FROM almacen WHERE id_articulo = %s", (product_id,))
+        cursor.execute("SELECT cantidad FROM articulos WHERE id_articulo = %s", (product_id,))
         stock_data = cursor.fetchone()
 
         if stock_data:
@@ -669,7 +669,7 @@ class VentasFrame(tk.Frame):
             self.treeview.insert('', 'end', values=(str(product_id), product_name, price, quantity, importe))
 
         new_stock = stock_available - quantity
-        cursor.execute("UPDATE almacen SET cantidad = %s WHERE id_articulo = %s", (new_stock, product_id))
+        cursor.execute("UPDATE articulos SET cantidad = %s WHERE id_articulo = %s", (new_stock, product_id))
         self.connection.commit()
 
         self.update_totals()
@@ -695,12 +695,12 @@ class VentasFrame(tk.Frame):
 
         if exists == 0:
             # Devolver el stock al almacén solo si no hay id_compra existente
-            cursor.execute("SELECT cantidad FROM almacen WHERE id_articulo = %s", (product_id,))
+            cursor.execute("SELECT cantidad FROM articulos WHERE id_articulo = %s", (product_id,))
             stock_data = cursor.fetchone()
             if stock_data:
                 current_stock = stock_data[0]
                 new_stock = current_stock + quantity_to_return
-                cursor.execute("UPDATE almacen SET cantidad = %s WHERE id_articulo = %s", (new_stock, product_id))
+                cursor.execute("UPDATE articulos SET cantidad = %s WHERE id_articulo = %s", (new_stock, product_id))
                 self.connection.commit()
             else:
                 messagebox.showerror("Error", "No se encontró el stock del producto.")

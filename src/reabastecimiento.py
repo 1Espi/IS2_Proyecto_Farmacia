@@ -54,6 +54,7 @@ class ReabastecimientoFrame(tk.Frame):
             estado_options.append(proveedor[1])
         self.proveedor = ttk.Combobox(self, values=estado_options, width=37)
         self.proveedor.grid(row=3, column=1, pady=5, padx=hor_padd)
+        self.proveedor.bind("<<ComboboxSelected>>", self.actualizar_lista_disponibles)
         
         self.prov_button = tk.Button(self, text="Proveedores", width=10, command=self.abrir_proveedores)
         self.prov_button.grid(row=3, column=2, pady=5, padx=0, sticky='w')
@@ -139,32 +140,8 @@ class ReabastecimientoFrame(tk.Frame):
         self.cancelar_button.grid(row=0, column=4, padx=10)
         
         self.cancelar()
-        self.cargar_articulos()
         self.estado_interfaz("cancelar")
     
-    def nuevo(self):
-        self.limpiar_campos()
-        try:
-            connection = connfile.connect_db()
-            cursor = connection.cursor()
-            cursor.execute("SELECT COALESCE(MAX(id_reabastecimiento), 0) + 1 FROM reabastecimientos")
-            id_articulo = cursor.fetchone()
-            self.id.insert(0, id_articulo)
-            self.estado_interfaz("nuevo")
-            self.usuario.config(state="normal")
-            self.usuario.delete(0, tk.END)
-            self.usuario.insert(0, self.parent.user_info["USERNAME"])
-            self.usuario.config(state="disabled")
-        except Exception as e:
-            messagebox.showerror("Error", f'No se pudo obtener el siguiente ID\n{e}')
-            return
-    
-    def abrir_proveedores(self):
-        nueva_ventana = tk.Toplevel(self)
-        nueva_ventana.title("Proveedores") 
-        mostrar_proveedores = MostrarProveedores(self.parent, nueva_ventana, self.lista_proveedores, self.proveedor)
-        mostrar_proveedores.pack(fill='both', expand=True)
-        
     def buscar(self):
         id = self.buscar_id.get()
         self.id.config(state='normal')
@@ -253,6 +230,7 @@ class ReabastecimientoFrame(tk.Frame):
                     self.lista_agregados.append((str(tupla[0]), str(tupla[1]), str(tupla[2]), str(tupla[3]), str(tupla[4])))
                 self.prev_agregados = self.lista_agregados.copy()
                 self.cargar_articulos_agregados()
+                self.actualizar_lista_disponibles(event="porlacresta")
                 self.estado_interfaz("buscar")
             else:
                 messagebox.showerror("Error", "No se encontró ese folio")
@@ -263,7 +241,24 @@ class ReabastecimientoFrame(tk.Frame):
             messagebox.showerror("Error", f'No se pudo realizar la busqueda\n{e}')
             self.limpiar_campos()
             self.estado_interfaz("cancelar")
-            
+   
+    def nuevo(self):
+        self.limpiar_campos()
+        try:
+            connection = connfile.connect_db()
+            cursor = connection.cursor()
+            cursor.execute("SELECT COALESCE(MAX(id_reabastecimiento), 0) + 1 FROM reabastecimientos")
+            id_articulo = cursor.fetchone()
+            self.id.insert(0, id_articulo)
+            self.estado_interfaz("nuevo")
+            self.usuario.config(state="normal")
+            self.usuario.delete(0, tk.END)
+            self.usuario.insert(0, self.parent.user_info["USERNAME"])
+            self.usuario.config(state="disabled")
+        except Exception as e:
+            messagebox.showerror("Error", f'No se pudo obtener el siguiente ID\n{e}')
+            return
+     
     def guardar(self):
         id = self.id.get()
         proveedor = self.proveedor.get()
@@ -322,19 +317,17 @@ class ReabastecimientoFrame(tk.Frame):
                 valores = (articulo[2], articulo[0])    
                 cursor.execute(query, valores)
 
-            # Confirmar la transacción
-            connection.commit()
 
             messagebox.showinfo("Éxito", "Se registró el reabastecimiento")
             self.limpiar_campos()
             self.estado_interfaz("cancelar")
 
+            connection.commit()
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo registrar la información\n{e}")
             connection.rollback()  # Deshacer los cambios en caso de error
             return
 
-        
     def modificar(self):
         id = self.id.get()
         proveedor = self.proveedor.get()
@@ -358,16 +351,8 @@ class ReabastecimientoFrame(tk.Frame):
             messagebox.showerror("Error", f"Fecha no válida\n{e}")
             return
 
-        connection = None
-        cursor = None
-        
-        try:
-            connection = connfile.connect_db()  # Conectar a la base de datos
-            cursor = connection.cursor()
-        except Exception as e:
-            messagebox.showerror("Error", f"No se pudo conectar con la base de datos\n{e}")
-            return
-        
+        connection = connfile.connect_db()  # Conectar a la base de datos
+        cursor = connection.cursor()
         try:
             # Inserción en reabastecimientos con RETURNING para obtener el id generado
             query = """
@@ -434,20 +419,28 @@ class ReabastecimientoFrame(tk.Frame):
 
 
             # Confirmar la transacción
-            connection.commit()
 
             messagebox.showinfo("Éxito", "Se registró el reabastecimiento")
             self.limpiar_campos()
             self.estado_interfaz("cancelar")
 
+            connection.commit()
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo registrar la información\n{e}")
             connection.rollback()  # Deshacer los cambios en caso de error
             return
-        
+     
     def cancelar(self):
+        self.lista_disponibles = []
+        self.treeview_disponibles.delete(*self.treeview_disponibles.get_children())
         self.limpiar_campos()
         self.estado_interfaz("cancelar")
+         
+    def abrir_proveedores(self):
+        nueva_ventana = tk.Toplevel(self)
+        nueva_ventana.title("Proveedores") 
+        mostrar_proveedores = MostrarProveedores(self.parent, nueva_ventana, self.lista_proveedores, self.proveedor)
+        mostrar_proveedores.pack(fill='both', expand=True)
         
     def seleccionar_agregados(self, event):
         curId = self.treeview_agregados.focus()
@@ -473,25 +466,7 @@ class ReabastecimientoFrame(tk.Frame):
             
             self.cantidad_producto.delete(0, tk.END)
             self.ppi_producto.delete(0, tk.END)
-            
-            
-    def cargar_articulos(self):
-        try:
-            connection = connfile.connect_db()
-            cursor = connection.cursor()
-            
-            query = "SELECT id_articulo, nombre FROM articulos ORDER BY id_articulo"
-            cursor.execute(query)
-            self.lista_articulos = cursor.fetchall()
-            
-            self.treeview_disponibles.delete(*self.treeview_disponibles.get_children())
-                        
-            for articulo in self.lista_articulos:
-                self.treeview_disponibles.insert(parent='', index='end', iid=articulo[0], values=(articulo[0],articulo[1]))
-            pass
-        except Exception as e:
-            messagebox.showerror("Error", f'No se pudieron cargar los articulos:\n{e}')
-            
+
     def cargar_articulos_agregados(self):
         try:
             self.treeview_agregados.delete(*self.treeview_agregados.get_children())
@@ -501,6 +476,50 @@ class ReabastecimientoFrame(tk.Frame):
             
         except Exception as e:
             messagebox.showerror("Error", f'No se pudieron cargar los articulos:\n{e}')
+            return
+        
+    def actualizar_lista_disponibles(self, event):
+        proveedor = self.proveedor.get()
+        
+        resultado = [id for id, nombre in self.lista_proveedores if nombre == proveedor]
+        proveedor = resultado[0] if resultado else None
+        
+        connection = connfile.connect_db()        
+        cursor = connection.cursor()
+        try:
+            cursor.execute(
+                "SELECT id_articulo from articulos_proveedores WHERE id_proveedor=%s",
+                (proveedor,)
+            )
+            
+            self.lista_disponibles = []
+
+            ids = cursor.fetchall()
+            for id in ids:
+                cursor.execute(
+                    "SELECT id_articulo, nombre FROM articulos WHERE id_articulo=%s ORDER BY id_articulo",
+                    (id[0],)
+                )
+                valor = cursor.fetchone()
+                self.lista_disponibles.append(valor)
+            
+            
+            self.treeview_disponibles.delete(*self.treeview_disponibles.get_children())
+                        
+            for articulo in self.lista_disponibles:
+                self.treeview_disponibles.insert(parent='', index='end', iid=articulo[0], values=(articulo[0],articulo[1]))
+                
+            if event != "porlacresta":
+                self.treeview_agregados.delete(*self.treeview_agregados.get_children())
+                
+                self.lista_agregados = []
+                self.prev_agregados = []
+                self.monto.config(state="normal")
+                self.monto.delete(0, tk.END)
+                self.monto.config(state="disabled")
+            
+        except Exception as e:
+            messagebox.showerror("Error", "No se pudieron cargar los articulos del proveedor")
             return
         
     def filtrar_datos(self, event):
@@ -514,14 +533,13 @@ class ReabastecimientoFrame(tk.Frame):
             return
         
         if not query:
-            for articulo in self.lista_articulos:
+            for articulo in self.lista_disponibles:
                 self.treeview_disponibles.insert(parent='', index='end', iid=articulo[0], values=(articulo[0],articulo[1]))
         else:
-            for articulo in self.lista_articulos:
+            for articulo in self.lista_disponibles:
                 if regex.search(articulo[1].lower()):
                     self.treeview_disponibles.insert(parent='', index='end', iid=articulo[0], values=(articulo[0],articulo[1]))
-                    
-                    
+                                  
     def quitar_producto(self):
         curId = self.treeview_agregados.focus()
         if curId:

@@ -134,20 +134,21 @@ class ArticulosFrame(tk.Frame):
             messagebox.showerror("Error", "El tope mínimo tiene que ser un número entero")
             return
         
+        connection = connfile.connect_db()
+        cursor = connection.cursor()
         try:
-            connection = connfile.connect_db()
-            cursor = connection.cursor()
             query = "INSERT INTO articulos(nombre, precio, cantidad, maximos, minimos) VALUES (%s, %s, %s, %s, %s)"
             valores = (nombre, precio, cantidad, maximos, minimos)
             cursor.execute(query, valores)
-            connection.commit()
             
+            connection.commit()
             self.cargar_articulos()
             self.filtrar_datos(event=None)
             
             messagebox.showinfo("Éxito", "Articulo guardado exitosamente")
             self.cancelar() 
         except Exception as e:
+            connection.rollback()
             messagebox.showerror("Error", f'No se pudo agregar el articulo\n{e}')
     
     def modificar(self):
@@ -181,9 +182,9 @@ class ArticulosFrame(tk.Frame):
             messagebox.showerror("Error", "El tope mínimo tiene que ser un número entero")
             return
         
+        connection = connfile.connect_db()
+        cursor = connection.cursor()
         try:
-            connection = connfile.connect_db()
-            cursor = connection.cursor()
             query = "UPDATE articulos SET nombre = %s, precio = %s, cantidad = %s, maximos = %s, minimos = %s WHERE id_articulo = %s"
             valores = (nombre, precio, cantidad, maximos, minimos, id)
             cursor.execute(query, valores)

@@ -22,6 +22,13 @@ CREATE TABLE proveedores ( --Balam
     correo varchar(70)
 );
 
+CREATE TABLE articulos_proveedores ( --Balam
+    id_proveedor bigint,
+    id_articulo bigint,
+    FOREIGN KEY (id_proveedor) REFERENCES proveedores(id_proveedor),
+    FOREIGN KEY (id_articulo) REFERENCES articulos(id_articulo)
+);
+
 CREATE TABLE reabastecimientos ( --Zuzuky
     id_reabastecimiento bigserial PRIMARY KEY,
     id_proveedor bigint,

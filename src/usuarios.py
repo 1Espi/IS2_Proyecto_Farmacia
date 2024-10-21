@@ -22,7 +22,7 @@ class UsuariosFrame(tk.Frame):
         title = tk.Label(self, text="Gestión de Usuarios", font=("Helvetica", 16, "bold"))
         title.grid(row=0, column=0, columnspan=4, pady=10)
 
-        tk.Label(self, text="Buscar por Nombre").grid(row=1, column=0, sticky='w', padx=10, pady=5)
+        tk.Label(self, text="Buscar por username:").grid(row=1, column=0, sticky='w', padx=10, pady=5)
         self.entry_search = tk.Entry(self)
         self.entry_search.grid(row=1, column=1, pady=5, padx=10)
         
@@ -107,7 +107,6 @@ class UsuariosFrame(tk.Frame):
                 "INSERT INTO usuarios (username, password, nombre, perfil) VALUES (%s, %s, %s, %s) RETURNING id",
                 (username, password, nombre, perfil)
             )
-            self.connection.commit()
             new_id = cursor.fetchone()[0]
             self.entry_id.config(state='normal')
             self.entry_id.delete(0, tk.END)
@@ -115,6 +114,7 @@ class UsuariosFrame(tk.Frame):
             self.entry_id.config(state='readonly')
             messagebox.showinfo("Éxito", "Usuario guardado exitosamente.")
             self.cancel()
+            self.connection.commit()
         except Exception as e:
             self.connection.rollback()
             messagebox.showerror("Error", f"No se pudo guardar el usuario: {e}")
@@ -169,9 +169,9 @@ class UsuariosFrame(tk.Frame):
                 "UPDATE usuarios SET username=%s, password=%s, nombre=%s, perfil=%s WHERE id=%s",
                 (username, password, nombre, perfil, user_id)
             )
-            self.connection.commit()
             messagebox.showinfo("Éxito", "Usuario modificado exitosamente.")
             self.cancel()
+            self.connection.commit()
         except Exception as e:
             self.connection.rollback()
             messagebox.showerror("Error", f"No se pudo modificar el usuario: {e}")
@@ -188,10 +188,10 @@ class UsuariosFrame(tk.Frame):
         cursor = self.connection.cursor()
         try:
             cursor.execute("DELETE FROM usuarios WHERE id=%s", (user_id,))
-            self.connection.commit()
             self.create_user()  
             messagebox.showinfo("Éxito", "Usuario eliminado exitosamente.")
             self.cancel()
+            self.connection.commit()
         except Exception as e:
             self.connection.rollback()
             messagebox.showerror("Error", f"No se pudo eliminar el usuario: {e}")
