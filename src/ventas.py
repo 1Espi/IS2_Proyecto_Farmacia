@@ -28,6 +28,7 @@ class VentasFrame(tk.Frame):
             return None
 
     def setup_ui(self):
+
         title = tk.Label(self, text="Gestión de Ventas", font=("Helvetica", 16, "bold"))
         title.grid(row=0, column=0, columnspan=5, pady=10)
 
@@ -105,13 +106,23 @@ class VentasFrame(tk.Frame):
         self.remove_button.grid(row=8, column=3, padx=5)
 
 
-        # Fila 10: Treeview de productos
         self.treeview = ttk.Treeview(self, columns=("Código", "Descripción", "Precio", "Cantidad", "Importe"), show='headings')
+
+        # Definir encabezados
         self.treeview.heading("Código", text="Código")
         self.treeview.heading("Descripción", text="Descripción")
         self.treeview.heading("Precio", text="Precio")
         self.treeview.heading("Cantidad", text="Cantidad")
         self.treeview.heading("Importe", text="Importe")
+
+        # Configurar las columnas para que el contenido esté centrado
+        self.treeview.column("Código", anchor="center")
+        self.treeview.column("Descripción", anchor="center")
+        self.treeview.column("Precio", anchor="center")
+        self.treeview.column("Cantidad", anchor="center")
+        self.treeview.column("Importe", anchor="center")
+
+        # Posicionar el Treeview en el grid
         self.treeview.grid(row=10, column=0, columnspan=4, pady=10)
         
         # Fila 11: Subtotal, IVA y Total
@@ -136,25 +147,250 @@ class VentasFrame(tk.Frame):
         self.pay_button.grid(row=13, column=2, padx=5)
         self.cancel_button = tk.Button(self, text="Cancelar compra", command=self.cancel_sale)
         self.cancel_button.grid(row=13, column=3, padx=5)
+        self.toggle_form(state="disabled")
+        self.search_folio_entry.config(state="normal")
+        self.search_button.config(state="normal")
+        self.create_button.config(state="normal")
+        self.modify_button.config(state="disabled")
+        self.delete_button.config(state="disabled")
+        
+    def toggle_form(self, state="normal"):
+        fields = [
+            self.entry_folio, self.entry_date, self.combo_client, self.entry_phone, 
+            self.entry_email, self.entry_puntos, self.combo_product, self.entry_price, 
+            self.entry_stock, self.entry_quantity, self.add_button, self.remove_button, 
+            self.entry_subtotal, self.entry_iva, self.entry_total, self.entry_puntosAcumulados, 
+            self.entry_payment, self.pay_button, self.cancel_button
+        ]
+        
+        for field in fields:
+            field.config(state=state)
+
+        self.entry_usuario.config(state="readonly")
+
+        if state == "normal":
+            self.search_folio_entry.config(state="disabled")
+            self.search_button.config(state="disabled")
+            self.modify_button.config(state="disabled")
+            self.delete_button.config(state="disabled")
+        else:
+            self.search_folio_entry.config(state="normal")
+            self.search_button.config(state="normal")
+            self.modify_button.config(state="normal")
+            self.delete_button.config(state="normal")
+
 
     def create_sale(self):
-        pass
+        self.clear_all()
+        self.toggle_form(state="normal")
+        self.entry_folio.config(state="readonly")
+        
+        self.search_folio_entry.config(state="disabled")
+        self.search_button.config(state="disabled")
+        self.modify_button.config(state="disabled")
+        self.delete_button.config(state="disabled")
+        
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT MAX(id_compra) FROM compras")
+        max_id = cursor.fetchone()[0]
+        next_folio = max_id + 1 if max_id else 1
+        self.entry_folio.config(state="normal")
+        self.entry_folio.delete(0, tk.END)
+        self.entry_folio.insert(0, str(next_folio))
+        self.entry_folio.config(state="readonly")
+        self.create_button.config(state="disabled")
+        
+
 
     def modify_sale(self):
-        pass
+        folio = self.entry_folio.get()
+
+        if not folio:
+            messagebox.showwarning("Advertencia", "Por favor, ingresa un folio para modificar.")
+            return
+
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute("""
+                SELECT c.id_compra, c.subtotal, c.total, c.puntos_acumulados, c.id_cliente
+                FROM compras c
+                WHERE c.id_compra = %s
+            """, (folio,))
+            sale_data = cursor.fetchone()
+
+            if not sale_data:
+                messagebox.showerror("Error", "No se encontró una venta con el folio especificado.")
+                return
+
+            id_compra, old_subtotal, old_total, old_puntos_acumulados, id_cliente = sale_data
+
+            productos_a_eliminar = []
+
+            cursor.execute("SELECT id_articulo, cantidad FROM articulos_compras WHERE id_compra = %s", (id_compra,))
+            current_products = cursor.fetchall()
+            for product in current_products:
+                productos_a_eliminar.append(product)
+
+            new_subtotal = 0
+            productos_modificados = []
+
+            for item in self.treeview.get_children():
+                item_values = self.treeview.item(item, 'values')
+                product_id = int(item_values[0])  # ID del producto
+                quantity = int(item_values[3])    # Cantidad de producto en la venta
+                price = float(item_values[2])     # Precio del producto
+                subtotal_item = float(item_values[4])  # Subtotal del artículo
+
+                if quantity > 0:
+                    new_subtotal += subtotal_item
+                    productos_modificados.append((product_id, quantity, subtotal_item))
+
+            iva = new_subtotal * self.iva_rate
+            new_total = new_subtotal + iva
+
+            # Calcular puntos en base al nuevo subtotal
+            new_puntos_acumulados = new_subtotal // 100
+
+            # Verificar la diferencia en puntos y actualizar si es necesario
+            diferencia_puntos = new_puntos_acumulados - old_puntos_acumulados
+
+            cursor.execute("""
+                UPDATE compras 
+                SET subtotal = %s, total = %s, puntos_acumulados = %s 
+                WHERE id_compra = %s
+            """, (new_subtotal, new_total, new_puntos_acumulados, id_compra))
+
+            # Eliminar todos los artículos de 'articulos_compras' para la venta
+            cursor.execute("DELETE FROM articulos_compras WHERE id_compra = %s", (id_compra,))
+
+            # Devolver stock de los productos eliminados
+            for product_id, quantity in productos_a_eliminar:
+                cursor.execute("SELECT cantidad FROM almacen WHERE id_articulo = %s", (product_id,))
+                stock_data = cursor.fetchone()
+                if stock_data:
+                    current_stock = stock_data[0]
+                    new_stock = current_stock + quantity  # Devolver la cantidad
+                    cursor.execute("UPDATE almacen SET cantidad = %s WHERE id_articulo = %s", (new_stock, product_id))
+
+            # Insertar los nuevos artículos
+            for product_id, new_quantity, new_subtotal_item in productos_modificados:
+                cursor.execute("""
+                    INSERT INTO articulos_compras (id_compra, id_articulo, cantidad, subtotal)
+                    VALUES (%s, %s, %s, %s)
+                """, (id_compra, product_id, new_quantity, new_subtotal_item))
+
+            self.connection.commit()
+
+            # Actualizar puntos del cliente si es necesario
+            if diferencia_puntos != 0:
+                cursor.execute("""
+                    UPDATE cliente 
+                    SET puntos = puntos + %s 
+                    WHERE id_cliente = %s
+                """, (diferencia_puntos, id_cliente))
+
+                self.connection.commit()
+
+            messagebox.showinfo("Éxito", "La venta ha sido modificada con éxito.")
+            self.clear_fields()
+            self.clear_all()
+
+        except Exception as e:
+            self.connection.rollback()
+            messagebox.showerror("Error", f"No se pudo modificar la venta: {e}")
+        finally:
+            cursor.close()
+
+
+
 
     def delete_sale(self):
-        pass
+        folio = self.entry_folio.get()
+        if not folio:
+            messagebox.showwarning("Advertencia", "Por favor, ingresa un folio para eliminar.")
+            return
+
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute("""
+                SELECT c.id_compra, c.id_cliente
+                FROM compras c
+                WHERE c.id_compra = %s
+            """, (folio,))
+            sale_data = cursor.fetchone()
+
+            if not sale_data:
+                messagebox.showerror("Error", "No se encontró una venta con el folio especificado.")
+                return
+
+            id_compra, id_cliente = sale_data
+
+            cursor.execute("""
+                SELECT ac.id_articulo, ac.cantidad
+                FROM articulos_compras ac
+                WHERE ac.id_compra = %s
+            """, (id_compra,))
+            products = cursor.fetchall()
+
+            cursor.execute("""
+                SELECT puntos_acumulados
+                FROM compras
+                WHERE id_compra = %s
+            """, (id_compra,))
+            puntos_acumulados = cursor.fetchone()[0]
+
+            cursor.execute("DELETE FROM articulos_compras WHERE id_compra = %s", (id_compra,))
+
+            cursor.execute("DELETE FROM compras WHERE id_compra = %s", (id_compra,))
+
+            cursor.execute("""
+                UPDATE cliente SET puntos = puntos - %s WHERE id_cliente = %s
+            """, (puntos_acumulados, id_cliente))
+
+            # Actualizar el stock del almacén
+            for product_id, quantity in products:
+                cursor.execute("SELECT cantidad FROM almacen WHERE id_articulo = %s", (product_id,))
+                stock_data = cursor.fetchone()
+                if stock_data:
+                    current_stock = stock_data[0]
+                    new_stock = current_stock + quantity
+                    cursor.execute("UPDATE almacen SET cantidad = %s WHERE id_articulo = %s", (new_stock, product_id))
+
+            self.connection.commit()
+            messagebox.showinfo("Éxito", "La venta ha sido eliminada con éxito.")
+
+            
+            self.clear_fields()
+            self.cancel_sale()
+
+        except Exception as e:
+            self.connection.rollback()
+            messagebox.showerror("Error", f"No se pudo eliminar la venta: {e}")
+        finally:
+            cursor.close()
+
+
 
     def cancel_sale(self):
-        # Obtener la lista de productos en el Treeview
+        # Habilitar todos los campos antes de limpiar
+        self.entry_folio.config(state='normal')
+        self.entry_date.config(state='normal')
+        self.entry_usuario.config(state='normal')
+        self.entry_phone.config(state='normal')
+        self.entry_email.config(state='normal')
+        self.entry_puntos.config(state='normal')
+        self.entry_price.config(state='normal')
+        self.entry_stock.config(state='normal')
+        self.entry_quantity.config(state='normal')
+        self.entry_payment.config(state='normal')
+        self.entry_subtotal.config(state='normal')
+        self.entry_iva.config(state='normal')
+        self.entry_total.config(state='normal')
+        self.entry_puntosAcumulados.config(state='normal')
+
+        # Obtener elementos en la treeview
         items = self.treeview.get_children()
         
-        if not items:
-            messagebox.showinfo("Información", "No hay ventas que cancelar.")
-            return
-        
-        # Conectar a la base de datos
         cursor = self.connection.cursor()
         
         for item in items:
@@ -162,17 +398,14 @@ class VentasFrame(tk.Frame):
             product_id = int(item_values[0])  # ID del producto
             quantity = int(item_values[3])  # Cantidad de producto en la venta
 
-            # Actualizar el stock en la base de datos
             cursor.execute(
                 "UPDATE almacen SET cantidad = cantidad + %s WHERE id_articulo = %s",
                 (quantity, product_id)
             )
         
-        # Confirmar los cambios en la base de datos
         self.connection.commit()
-        
-        # Limpiar los campos (excepto el nombre de usuario)
-        self.entry_folio.config(state='normal')
+
+        # Limpiar todos los campos
         self.entry_folio.delete(0, tk.END)
         self.entry_date.set_date(datetime.now())
         self.combo_client.set('')
@@ -184,18 +417,139 @@ class VentasFrame(tk.Frame):
         self.entry_stock.delete(0, tk.END)
         self.entry_quantity.delete(0, tk.END)
 
-        # Limpiar el Treeview
+        # Eliminar todos los elementos de la treeview
         for item in self.treeview.get_children():
             self.treeview.delete(item)
         
-        # Reiniciar el subtotal, IVA y total
+        # Limpiar los campos de subtotal, IVA, total y puntos acumulados
         self.entry_subtotal.delete(0, tk.END)
         self.entry_iva.delete(0, tk.END)
         self.entry_total.delete(0, tk.END)
         self.entry_puntosAcumulados.delete(0, tk.END)
+
+        # Limpiar el campo de pago
         self.entry_payment.delete(0, tk.END)
+
+        # Bloquear los campos nuevamente según sea necesario
+        self.entry_folio.config(state='readonly')
+        self.entry_date.config(state='readonly')
+        self.entry_usuario.config(state='readonly')
+        self.combo_client.config(state='readonly')
+        self.combo_product.config(state='readonly')
+        self.entry_phone.config(state='normal') 
+        self.entry_email.config(state='normal') 
+        self.entry_puntos.config(state='normal')  
+        self.entry_price.config(state='normal')  
+        self.entry_stock.config(state='normal')  
+        self.entry_quantity.config(state='normal')  
+        self.entry_payment.config(state='normal')  
+
+        self.toggle_form(state="disabled")
+        self.search_folio_entry.config(state="normal")
+        self.search_button.config(state="normal")
+        self.create_button.config(state="normal")
+        self.modify_button.config(state="disabled")
+        self.delete_button.config(state="disabled")
+
+
         
-        messagebox.showinfo("Información", "La venta ha sido cancelada")
+    def search_sale(self):
+        folio = self.search_folio_entry.get()
+
+        if not folio:
+            messagebox.showwarning("Advertencia", "Por favor, ingresa un folio para buscar.")
+            return
+        
+        try:
+            cursor = self.connection.cursor()
+            
+            # Habilitar todos los campos al principio
+            self.toggle_form(state="normal")
+            self.search_folio_entry.config(state="normal")
+            self.search_button.config(state="normal")
+            self.modify_button.config(state="normal")
+            self.delete_button.config(state="normal")
+            
+            cursor.execute("""
+                SELECT c.id_compra, c.fecha, c.subtotal, c.descuento, c.total, c.id_cliente, c.puntos_acumulados, u.nombre
+                FROM compras c 
+                JOIN usuarios u ON c.id_usuario = u.id
+                WHERE c.id_compra = %s
+            """, (folio,))
+            sale_data = cursor.fetchone()
+
+            if sale_data:
+                self.pay_button.config(state="disabled")
+                self.cancel_button.config(state="disabled")
+                id_compra, fecha, subtotal, descuento, total, id_cliente, puntos_acumulados, usuario_nombre = sale_data
+
+                self.entry_folio.config(state='normal')
+                self.entry_folio.delete(0, tk.END)
+                self.entry_folio.insert(0, id_compra)
+                self.entry_folio.config(state='readonly')
+
+                self.entry_date.set_date(fecha)
+                self.entry_usuario.config(state='normal')
+                self.entry_usuario.delete(0, tk.END)
+                self.entry_usuario.insert(0, usuario_nombre)
+                self.entry_usuario.config(state='readonly')
+                
+                cursor.execute("SELECT nombre, telefono, email, puntos FROM cliente WHERE id_cliente = %s", (id_cliente,))
+                client_data = cursor.fetchone()
+                if client_data:
+                    nombre_cliente, telefono, email, puntos = client_data
+                    self.combo_client.set(nombre_cliente)
+                    self.entry_phone.delete(0, tk.END)
+                    self.entry_phone.insert(0, telefono)
+                    self.entry_email.delete(0, tk.END)
+                    self.entry_email.insert(0, email)
+                    self.entry_puntos.delete(0, tk.END)
+                    self.entry_puntos.insert(0, puntos)
+                
+                self.entry_subtotal.delete(0, tk.END)
+                self.entry_subtotal.insert(0, subtotal)
+                self.entry_iva.delete(0, tk.END)
+                self.entry_iva.insert(0, round(subtotal * self.iva_rate, 2))
+                self.entry_total.delete(0, tk.END)
+                self.entry_total.insert(0, total)
+                self.entry_puntosAcumulados.delete(0, tk.END)
+                self.entry_puntosAcumulados.insert(0, puntos_acumulados)
+
+                for item in self.treeview.get_children():
+                    self.treeview.delete(item)
+
+                cursor.execute("""
+                    SELECT ac.id_articulo, a.nombre, a.precio, ac.cantidad, ac.subtotal
+                    FROM articulos_compras ac
+                    JOIN articulos a ON ac.id_articulo = a.id_articulo
+                    WHERE ac.id_compra = %s
+                """, (id_compra,))
+                products_data = cursor.fetchall()
+                for product in products_data:
+                    id_articulo, nombre, precio, cantidad, subtotal_item = product
+                    self.treeview.insert("", "end", values=(id_articulo, nombre, precio, cantidad, subtotal_item))
+            else:
+                messagebox.showinfo("No encontrado", "No se encontró una venta con el folio especificado.")
+                self.clear_all()  # Limpia todos los campos si no se encuentra la venta
+                return  # Asegúrate de salir de la función aquí
+
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo realizar la búsqueda: {e}")
+            self.clear_all()  # Limpia todos los campos en caso de error
+        
+        finally:
+            # Deshabilitar todos los campos excepto treeview y botones específicos
+            self.toggle_form(state="disabled")
+            self.entry_folio.config(state="normal")
+            self.search_folio_entry.config(state="normal")
+            self.search_button.config(state="normal")
+            self.create_button.config(state="normal")
+            self.modify_button.config(state="normal")
+            self.delete_button.config(state="normal")
+            self.add_button.config(state="normal")
+            self.remove_button.config(state="normal")
+
+
 
         
     def get_client_list(self):
@@ -206,6 +560,9 @@ class VentasFrame(tk.Frame):
         return list(self.clients_dict.keys())
 
     def load_client_details(self, event):
+        self.entry_phone.config(state="normal")
+        self.entry_email.config(state="normal")
+        self.entry_puntos.config(state="normal")
         client_name = self.combo_client.get()
         client_id = self.clients_dict.get(client_name)
         cursor = self.connection.cursor()
@@ -220,7 +577,9 @@ class VentasFrame(tk.Frame):
             self.entry_email.insert(0, correo)
             self.entry_puntos.delete(0, tk.END)
             self.entry_puntos.insert(0, puntos)
-            
+            self.entry_phone.config(state="disabled")
+            self.entry_email.config(state="disabled")
+            self.entry_puntos.config(state="disabled")
             self.puntos_cliente = puntos
             if self.puntos_cliente >= 20:
                 messagebox.showinfo("Descuento Disponible", "Tendrás un 50% de descuento en tu compra.")
@@ -234,6 +593,8 @@ class VentasFrame(tk.Frame):
         return list(self.products_dict.keys())
 
     def load_product_details(self, event):
+        self.entry_price.config(state="normal")
+        self.entry_stock.config(state="normal")
         product_name = self.combo_product.get()
         product_id = self.products_dict.get(product_name)
         cursor = self.connection.cursor()
@@ -245,6 +606,8 @@ class VentasFrame(tk.Frame):
             self.entry_price.insert(0, precio)
             self.entry_stock.delete(0, tk.END)
             self.entry_stock.insert(0, stock)
+            self.entry_price.config(state="disabled")
+            self.entry_stock.config(state="disabled")
             
     def add_product(self):
         product_name = self.combo_product.get()
@@ -313,43 +676,63 @@ class VentasFrame(tk.Frame):
 
         item_values = self.treeview.item(selected_item, 'values')
         product_id = item_values[0]
-        quantity_to_return = int(item_values[3])  # Obtener la cantidad del artículo a eliminar
+        quantity_to_return = int(item_values[3])  
+        id_compra = self.entry_folio.get()  
 
-        # Eliminar el producto del Treeview
         self.treeview.delete(selected_item)
 
-        # Devolver el stock al almacén
         cursor = self.connection.cursor()
-        cursor.execute("SELECT cantidad FROM almacen WHERE id_articulo = %s", (product_id,))
-        stock_data = cursor.fetchone()
-        if stock_data:
-            current_stock = stock_data[0]
-            new_stock = current_stock + quantity_to_return
-            cursor.execute("UPDATE almacen SET cantidad = %s WHERE id_articulo = %s", (new_stock, product_id))
-            self.connection.commit()
+        cursor.execute("SELECT COUNT(*) FROM articulos_compras WHERE id_compra = %s AND id_articulo = %s", (id_compra, product_id))
+        exists = cursor.fetchone()[0]
+
+        if exists == 0:
+            # Devolver el stock al almacén solo si no hay id_compra existente
+            cursor.execute("SELECT cantidad FROM almacen WHERE id_articulo = %s", (product_id,))
+            stock_data = cursor.fetchone()
+            if stock_data:
+                current_stock = stock_data[0]
+                new_stock = current_stock + quantity_to_return
+                cursor.execute("UPDATE almacen SET cantidad = %s WHERE id_articulo = %s", (new_stock, product_id))
+                self.connection.commit()
+            else:
+                messagebox.showerror("Error", "No se encontró el stock del producto.")
         else:
-            messagebox.showerror("Error", "No se encontró el stock del producto.")
+            messagebox.showinfo("Información", "No se puede devolver stock, el producto está asociado a una compra existente.")
+
+        cursor.close()
 
         self.update_totals()
 
-        messagebox.showinfo("Información", "Producto eliminado y stock actualizado.")
-
     def update_totals(self):
-        self.subtotal = sum(float(self.treeview.item(item, 'values')[4]) for item in self.treeview.get_children())
-        self.entry_subtotal.delete(0, tk.END)
-        self.entry_subtotal.insert(0, f"{self.subtotal:.2f}")
+            # Desbloquear los Entry
+            self.entry_subtotal.config(state='normal')
+            self.entry_iva.config(state='normal')
+            self.entry_total.config(state='normal')
+            self.entry_puntosAcumulados.config(state='normal')
 
-        iva = self.subtotal * self.iva_rate
-        self.entry_iva.delete(0, tk.END)
-        self.entry_iva.insert(0, f"{iva:.2f}")
+            # Realizar los cálculos
+            self.subtotal = sum(float(self.treeview.item(item, 'values')[4]) for item in self.treeview.get_children())
+            self.entry_subtotal.delete(0, tk.END)
+            self.entry_subtotal.insert(0, f"{self.subtotal:.2f}")
 
-        self.total = self.subtotal + iva
-        self.entry_total.delete(0, tk.END)
-        self.entry_total.insert(0, f"{self.total:.2f}")
+            iva = self.subtotal * self.iva_rate
+            self.entry_iva.delete(0, tk.END)
+            self.entry_iva.insert(0, f"{iva:.2f}")
 
-        self.puntos = int(self.total // 100)  
-        self.entry_puntosAcumulados.delete(0, tk.END)
-        self.entry_puntosAcumulados.insert(0, self.puntos)
+            self.total = self.subtotal + iva
+            self.entry_total.delete(0, tk.END)
+            self.entry_total.insert(0, f"{self.total:.2f}")
+
+            self.puntos = int(self.total // 100)  
+            self.entry_puntosAcumulados.delete(0, tk.END)
+            self.entry_puntosAcumulados.insert(0, self.puntos)
+
+            # Bloquear de nuevo los Entry
+            self.entry_subtotal.config(state='readonly')
+            self.entry_iva.config(state='readonly')
+            self.entry_total.config(state='readonly')
+            self.entry_puntosAcumulados.config(state='readonly')
+        
 
     def clear_fields(self):
         """Limpia los campos de entrada."""
@@ -360,7 +743,6 @@ class VentasFrame(tk.Frame):
     
 
     def process_payment(self):
-        # Verificar si se ha seleccionado un cliente
         if self.cliente_id is None:
             messagebox.showwarning("Advertencia", "Por favor, seleccione un cliente antes de proceder al pago.")
             return
@@ -379,17 +761,18 @@ class VentasFrame(tk.Frame):
             change = payment - self.total
             cursor = self.connection.cursor()
 
-            # Obtener información de la compra
             subtotal = float(self.entry_subtotal.get())
+
+            # Verificar si se aplicará descuento
             if self.puntos_cliente >= 20:
-                descuento = 50  
+                descuento = 50
                 self.puntos_cliente -= 20  
                 self.update_cliente_puntos(aplicar_descuento=True)  
+                puntos_acumulados = 0  # Puntos acumulados son 0 si hay descuento
             else:
                 descuento = 0
-                self.puntos_acumulados += self.puntos
-                self.update_cliente_puntos(aplicar_descuento=False)  
-
+                puntos_acumulados = int(self.entry_puntosAcumulados.get())  
+                self.update_cliente_puntos(aplicar_descuento=False)
 
             total = float(self.entry_total.get())
             fecha = self.entry_date.get_date()
@@ -397,8 +780,8 @@ class VentasFrame(tk.Frame):
             usuario_id = self.user_id
 
             cursor.execute(
-                "INSERT INTO compras (id_usuario, id_cliente, fecha, subtotal, descuento, total) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id_compra",
-                (usuario_id, cliente_id, fecha, subtotal, descuento, total)
+                "INSERT INTO compras (id_usuario, id_cliente, fecha, subtotal, descuento, total, puntos_acumulados) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id_compra",
+                (usuario_id, cliente_id, fecha, subtotal, descuento, total, puntos_acumulados)
             )
             id_compra = cursor.fetchone()[0]
 
@@ -416,11 +799,6 @@ class VentasFrame(tk.Frame):
 
             self.connection.commit()
 
-            if descuento == 0:
-                self.puntos_acumulados += self.puntos
-                self.update_cliente_puntos()  # Actualizamos los puntos del cliente en la BD si no se aplicó descuento
-
-            # Preguntar al usuario si quiere ver el ticket
             response = messagebox.askyesno("Transacción Completa", f"Pago recibido. Cambio: {change:.2f}.\n\n¿Desea ver el ticket de compra?")
             if response:
                 self.show_ticket(descuento)  
@@ -433,80 +811,6 @@ class VentasFrame(tk.Frame):
             self.connection.rollback()
             messagebox.showerror("Error", f"No se pudo completar la venta: {e}")
 
-
-
-
-    def search_sale(self):
-        folio = self.search_folio_entry.get()
-
-        if not folio:
-            messagebox.showwarning("Advertencia", "Por favor, ingresa un folio para buscar.")
-            return
-        try:
-            cursor = self.connection.cursor()
-
-            # Consulta principal para la tabla compras
-            cursor.execute("""
-                SELECT c.id_compra, c.fecha, c.subtotal, c.descuento, c.total, c.id_cliente, u.nombre 
-                FROM compras c 
-                JOIN usuarios u ON c.id_usuario = u.id
-                WHERE c.id_compra = %s
-            """, (folio,))
-            sale_data = cursor.fetchone()
-
-            if sale_data:
-                id_compra, fecha, subtotal, descuento, total, id_cliente, usuario_nombre = sale_data
-
-                self.entry_folio.config(state='normal')
-                self.entry_folio.delete(0, tk.END)
-                self.entry_folio.insert(0, id_compra)
-                self.entry_folio.config(state='readonly')
-
-                self.entry_date.set_date(fecha)
-                self.entry_usuario.config(state='normal')
-                self.entry_usuario.delete(0, tk.END)
-                self.entry_usuario.insert(0, usuario_nombre)
-                self.entry_usuario.config(state='readonly')
-                
-                cursor.execute("SELECT nombre, telefono, email, puntos FROM cliente WHERE id_cliente = %s", (id_cliente,))
-                client_data = cursor.fetchone()
-                if client_data:
-                    nombre_cliente, telefono, email, puntos = client_data
-                    self.combo_client.set(nombre_cliente)
-                    self.entry_phone.delete(0, tk.END)
-                    self.entry_phone.insert(0, telefono)
-                    self.entry_email.delete(0, tk.END)
-                    self.entry_email.insert(0, email)
-                    self.entry_puntos.delete(0, tk.END)
-                    self.entry_puntos.insert(0, puntos)
-                
-                self.entry_subtotal.delete(0, tk.END)
-                self.entry_subtotal.insert(0, subtotal)
-                self.entry_iva.delete(0, tk.END)
-                self.entry_iva.insert(0, round(subtotal * self.iva_rate, 2))
-                self.entry_total.delete(0, tk.END)
-                self.entry_total.insert(0, total)
-
-                for item in self.treeview.get_children():
-                    self.treeview.delete(item)
-
-                cursor.execute("""
-                    SELECT ac.id_articulo, a.nombre, a.precio, ac.cantidad, ac.subtotal
-                    FROM articulos_compras ac
-                    JOIN articulos a ON ac.id_articulo = a.id_articulo
-                    WHERE ac.id_compra = %s
-                """, (id_compra,))
-                products_data = cursor.fetchall()
-                for product in products_data:
-                    id_articulo, nombre, precio, cantidad, subtotal_item = product
-                    self.treeview.insert("", "end", values=(id_articulo, nombre, precio, cantidad, subtotal_item))
-            else:
-                messagebox.showinfo("No encontrado", "No se encontró una venta con el folio especificado.")
-        
-        except Exception as e:
-            messagebox.showerror("Error", f"No se pudo realizar la búsqueda: {e}")
-        finally:
-            cursor.close()
 
 
             
@@ -542,11 +846,71 @@ class VentasFrame(tk.Frame):
         cursor = self.connection.cursor()
 
         if aplicar_descuento:
-            # Si se aplicó descuento, restar los 20 puntos
             cursor.execute("UPDATE cliente SET puntos = %s WHERE id_cliente = %s", (self.puntos_cliente, self.cliente_id))
         else:
-            # Si no se aplicó descuento, acumular los nuevos puntos
-            cursor.execute("UPDATE cliente SET puntos = puntos + %s WHERE id_cliente = %s", (self.puntos, self.cliente_id))
+            puntos_acumulados = self.entry_puntosAcumulados.get()  
+            cursor.execute("UPDATE cliente SET puntos = puntos + %s WHERE id_cliente = %s", (puntos_acumulados, self.cliente_id))
 
         self.connection.commit()
 
+    def clear_all(self):
+        # Habilitar todos los campos antes de limpiar
+        self.entry_folio.config(state='normal')
+        self.entry_date.config(state='normal')
+        self.entry_usuario.config(state='normal')
+        self.entry_phone.config(state='normal')
+        self.entry_email.config(state='normal')
+        self.entry_puntos.config(state='normal')
+        self.entry_price.config(state='normal')
+        self.entry_stock.config(state='normal')
+        self.entry_quantity.config(state='normal')
+        self.entry_payment.config(state='normal')
+        self.entry_subtotal.config(state='normal')
+        self.entry_iva.config(state='normal')
+        self.entry_total.config(state='normal')
+        self.entry_puntosAcumulados.config(state='normal')
+
+        # Limpiar todos los campos
+        self.entry_folio.delete(0, tk.END)
+        self.entry_date.set_date(datetime.now())
+        self.combo_client.set('')
+        self.entry_phone.delete(0, tk.END)
+        self.entry_email.delete(0, tk.END)
+        self.entry_puntos.delete(0, tk.END)
+        self.combo_product.set('')
+        self.entry_price.delete(0, tk.END)
+        self.entry_stock.delete(0, tk.END)
+        self.entry_quantity.delete(0, tk.END)
+
+        # Eliminar todos los elementos de la treeview
+        for item in self.treeview.get_children():
+            self.treeview.delete(item)
+
+        # Limpiar los campos de subtotal, IVA, total y puntos acumulados
+        self.entry_subtotal.delete(0, tk.END)
+        self.entry_iva.delete(0, tk.END)
+        self.entry_total.delete(0, tk.END)
+        self.entry_puntosAcumulados.delete(0, tk.END)
+
+        # Limpiar el campo de pago
+        self.entry_payment.delete(0, tk.END)
+
+        # Bloquear los campos nuevamente según sea necesario
+        self.entry_folio.config(state='readonly')
+        self.entry_date.config(state='readonly')
+        self.entry_usuario.config(state='readonly')
+        self.combo_client.config(state='readonly')
+        self.combo_product.config(state='readonly')
+        self.entry_phone.config(state='normal')  # Puedes decidir si deseas bloquear este
+        self.entry_email.config(state='normal')  # Puedes decidir si deseas bloquear este
+        self.entry_puntos.config(state='normal')  # Puedes decidir si deseas bloquear este
+        self.entry_price.config(state='normal')  # Puedes decidir si deseas bloquear este
+        self.entry_stock.config(state='normal')  # Puedes decidir si deseas bloquear este
+        self.entry_quantity.config(state='normal')  # Puedes decidir si deseas bloquear este
+        self.entry_payment.config(state='normal')  # Puedes decidir si deseas bloquear este
+
+        # Deshabilitar la forma y habilitar botones
+        self.toggle_form(state="disabled")
+        self.search_folio_entry.config(state="normal")
+        self.search_button.config(state="normal")
+        self.create_button.config(state="normal")
