@@ -66,7 +66,7 @@ CREATE TABLE compras ( --Angel
     subtotal float,
     descuento float,
     total float,
-    puntos_acumulados float;
+    puntos_acumulados float,
     FOREIGN KEY (id_usuario) REFERENCES usuarios(ID),
     FOREIGN KEY (id_cliente) REFERENCES cliente(id_cliente)
 );
