@@ -275,7 +275,7 @@ class ReabastecimientoFrame(tk.Frame):
 
         try:
             # Parsear la fecha en formato dd/mm/yy
-            fecha_obj = datetime.strptime(fecha_normal, "%m/%d/%y")
+            fecha_obj = datetime.strptime(fecha_normal, "%d/%m/%y")
             # Convertir la fecha al formato YYYY/MM/DD
             fecha = fecha_obj.strftime("%Y/%m/%d")
         except ValueError as e:
