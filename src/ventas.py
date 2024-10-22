@@ -272,14 +272,18 @@ class VentasFrame(tk.Frame):
             # Eliminar todos los artículos de 'articulos_compras' para la venta
             cursor.execute("DELETE FROM articulos_compras WHERE id_compra = %s", (id_compra,))
 
-            # Devolver stock de los productos eliminados
+            # Crear un conjunto con los IDs de productos modificados
+            productos_modificados_ids = {product_id for product_id, _, _ in productos_modificados}
+
+            # Devolver stock solo de los productos que han sido eliminados
             for product_id, quantity in productos_a_eliminar:
-                cursor.execute("SELECT cantidad FROM almacen WHERE id_articulo = %s", (product_id,))
-                stock_data = cursor.fetchone()
-                if stock_data:
-                    current_stock = stock_data[0]
-                    new_stock = current_stock + quantity  # Devolver la cantidad
-                    cursor.execute("UPDATE almacen SET cantidad = %s WHERE id_articulo = %s", (new_stock, product_id))
+                if product_id not in productos_modificados_ids:
+                    cursor.execute("SELECT cantidad FROM articulos WHERE id_articulo = %s", (product_id,))
+                    stock_data = cursor.fetchone()
+                    if stock_data:
+                        current_stock = stock_data[0]
+                        new_stock = current_stock + quantity  # Devolver la cantidad eliminada
+                        cursor.execute("UPDATE articulos SET cantidad = %s WHERE id_articulo = %s", (new_stock, product_id))
 
             # Insertar los nuevos artículos
             for product_id, new_quantity, new_subtotal_item in productos_modificados:
@@ -355,16 +359,7 @@ class VentasFrame(tk.Frame):
             cursor.execute("""
                 UPDATE cliente SET puntos = puntos - %s WHERE id_cliente = %s
             """, (puntos_acumulados, id_cliente))
-
-            # Actualizar el stock del almacén
-            for product_id, quantity in products:
-                cursor.execute("SELECT cantidad FROM almacen WHERE id_articulo = %s", (product_id,))
-                stock_data = cursor.fetchone()
-                if stock_data:
-                    current_stock = stock_data[0]
-                    new_stock = current_stock + quantity
-                    cursor.execute("UPDATE almacen SET cantidad = %s WHERE id_articulo = %s", (new_stock, product_id))
-
+            
             self.connection.commit()
             messagebox.showinfo("Éxito", "La venta ha sido eliminada con éxito.")
 
@@ -408,7 +403,7 @@ class VentasFrame(tk.Frame):
             quantity = int(item_values[3])  # Cantidad de producto en la venta
 
             cursor.execute(
-                "UPDATE almacen SET cantidad = cantidad + %s WHERE id_articulo = %s",
+                "UPDATE articulos SET cantidad = cantidad + %s WHERE id_articulo = %s",
                 (quantity, product_id)
             )
         
